@@ -67,7 +67,7 @@ The FIM estimator expects a 2D array of shape
 
 **Pipeline B** — digitise a time series. From a population activity time series `S(t)`:
 
-S(t) -> σ(t) = S(t+1)/S(t) -> digitise σ into bins of a single adaptively chosen width (see digitize_into_bins_adaptive)
+S(t) -> σ(t) = S(t+1)/S(t) -> digitise σ into bins of an adaptively chosen width (see digitize_into_bins_adaptive)
 -> samples falling in each bin form one column of the (n_samples, n_bins) array
 
 The resulting array has the same shape as Pipeline A and is passed to `compute_fim` identically. The digitisation step is the only difference.
@@ -146,8 +146,17 @@ examples/spiking_brain/
 
 
 `npfi.py` and `deft.py` are vendored from third-party sources:
-- `npfi.py` [omrihar_npfi](https://github.com/omrihar/1_npfi)
-- `deft.py` [Kinney_deft](https://github.com/jbkinney/13_deft)
+- `npfi.py` [omrihar_npfi](https://github.com/omrihar/1_npfi) — MIT, Copyright (c) 2015 Omri Har-Shemesh
+- `deft.py` [Kinney_deft](https://github.com/jbkinney/13_deft) — MIT, Copyright (c) 2014 Justin B. Kinney
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+The two vendored files remain under their own MIT licenses and copyright,
+reproduced above; everything else is copyright (c) 2026 the authors listed below.
 
 ---
 
