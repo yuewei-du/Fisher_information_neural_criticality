@@ -103,9 +103,13 @@ forward = compute_fim(
 )
 FI_mean  = (backward[0] + forward[0]) / 2  # average of the two FIM estimates
 ```
-`data` is a 2D array of shape `(n_samples, n_param_values)` and `param_values`
-the matching grid of shape `(n_param_values,)`. `FI_mean` is the bootstrap mean
-of the FIM over the evaluated indices; `FI_low`, `FI_up` and `eps` have the same shape. $\epsilon$ is a metric that quantifies the numerical accuracy of the FIM estimate at
+`data`: a 2D array of shape `(n_samples, n_param_values)` 
+
+`param_values`: parameter grid of shape `(n_param_values,)`. 
+
+`FI_mean`: bootstrap mean of the FIM
+
+`FI_low`, `FI_up` and `eps` have the same shape. $\epsilon$ is a metric that quantifies the numerical accuracy of the FIM estimate at
 each parameter point. Its optimal value is around 0.05; values far from this
 indicate the parameter step  $\Delta \theta$ was poorly chosen, and the corresponding
 FIM values should be treated with caution. For details of the estimation
@@ -151,14 +155,6 @@ examples/spiking_brain/
 
 ---
 
-## License
-
-MIT — see [LICENSE](LICENSE).
-
-The two vendored files remain under their own MIT licenses and copyright,
-reproduced above; everything else is copyright (c) 2026 the authors listed below.
-
----
 
 ## Citation
 
