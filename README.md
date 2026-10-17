@@ -38,6 +38,11 @@ and parameters, see the Methods section of [Du et al. (2026)](https://arxiv.org/
 | `examples/spiking_brain/run_pipeline_lambda.py` | Fig. 3a — FIM of the control parameter, $G_{\lambda\lambda}$ |
 | `examples/spiking_brain/run_pipeline_sigma.py` | Fig. 3b — FIM of the observed branching ratio, $G_{\sigma\sigma}$ |
 
+<p align="center">
+  <img src="figures/fig3a_pipeline_a.png" width="47%" alt="Pipeline A — Fisher information of the control parameter">
+  <img src="figures/fig3b_pipeline_b.png" width="47%" alt="Pipeline B — Fisher information of the observed branching ratio">
+</p>
+
 ---
 
 ## Install and run
@@ -146,6 +151,10 @@ examples/spiking_brain/
   simulate.py             simulation drivers, including the branching ratio σ(t)
   run_pipeline_lambda.py  Pipeline A, end to end
   run_pipeline_sigma.py   Pipeline B, end to end
+
+figures/
+  fig3a_pipeline_a.png    Fig. 3a, written by run_pipeline_lambda.py
+  fig3b_pipeline_b.png    Fig. 3b, written by run_pipeline_sigma.py
 ```
 
 
