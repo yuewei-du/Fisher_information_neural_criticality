@@ -39,9 +39,14 @@ and parameters, see the Methods section of [Du et al. (2026)](https://arxiv.org/
 | `examples/spiking_brain/run_pipeline_sigma.py` | Fig. 3b — FIM of the observed branching ratio, $G_{\sigma\sigma}$ |
 
 <p align="center">
-  <img src="figures/fig3a_pipeline_a.png" width="47%" alt="Pipeline A — Fisher information of the control parameter">
-  <img src="figures/fig3b_pipeline_b.png" width="47%" alt="Pipeline B — Fisher information of the observed branching ratio">
+  <img src="figures/pipeline_a.png" width="80%" alt="Pipeline A — Fisher information of the control parameter">
 </p>
+
+<p align="center">
+  <img src="figures/pipeline_b.png" height="80%" alt="Pipeline B — Fisher information of the observed branching ratio">
+</p>
+
+
 
 ---
 
@@ -84,9 +89,16 @@ The resulting array has the same shape as Pipeline A and is passed to `compute_f
 
 ```python
 import numpy as np
-from fim import compute_fim
+from fim import compute_fim, plot_histogram_and_pdf
 
 index_range = np.arange(1, len(param_values) - 1)
+
+# Before estimating the FIM: check the histogram of the samples, with the estimated PDF
+for i in range(1, len(param_values) - 1):
+    plot_histogram_and_pdf(
+        [data[:, i], data[:, i - 1], data[:, i + 1]],
+        G=100, alpha=1, para=param_values[i], param_label=r"\theta",
+    )
 
 # Pipeline A: symmetric numerical derivative
 FI_mean, FI_low, FI_up, eps = compute_fim(
@@ -121,6 +133,10 @@ FIM values should be treated with caution. For details of the estimation
 algorithm, see [npfi](https://doi.org/10.1103/PhysRevE.93.023301) by Har-Shemesh
 et al.
 
+Before running the FIM estimation, we recommend calling `plot_histogram_and_pdf` on a
+few parameter grids to validate the inputs. The function plots the histogram of the samples, along with the estimated PDF from DEFT. This lets you verify two things: (1) whether the sampling process has explored the full ensemble, so that those samples adequately represent the underlying probability distribution; (2) whether the estimated PDF fits the empirical histogram well, confirming
+that `G` and `alpha` are appropriately chosen.
+
 ### Key arguments
 
 | Argument | Default | Meaning |
@@ -153,8 +169,8 @@ examples/spiking_brain/
   run_pipeline_sigma.py   Pipeline B, end to end
 
 figures/
-  fig3a_pipeline_a.png    Fig. 3a, written by run_pipeline_lambda.py
-  fig3b_pipeline_b.png    Fig. 3b, written by run_pipeline_sigma.py
+  pipeline_a.png          Fig. 3a, written by run_pipeline_lambda.py
+  pipeline_b.png          Fig. 3b, written by run_pipeline_sigma.py
 ```
 
 
