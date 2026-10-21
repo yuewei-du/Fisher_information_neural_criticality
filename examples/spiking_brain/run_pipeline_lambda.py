@@ -1,17 +1,19 @@
-import sys
+"""
+Pipeline A: FIM of the control parameter lambda. Run from the repo root:
+
+    python -m examples.spiking_brain.run_pipeline_lambda
+"""
+
 import time
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from fim import compute_fim, plot_histogram_and_pdf     
-from fim.estimator import (                              
-    DEFAULT_EPSILON, DEFAULT_EPSILON_TOLERANCE,
-)
-from examples.spiking_brain.model import NetworkParams   
-from examples.spiking_brain.simulate import simulate_para_lambda  
+from fim import compute_fim, plot_histogram_and_pdf
+from fim.estimator import DEFAULT_EPSILON, DEFAULT_EPSILON_TOLERANCE
+from examples.spiking_brain.model import NetworkParams
+from examples.spiking_brain.simulate import simulate_para_lambda
 
 
 def main():

@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fim-criticality"
+dynamic = ["version"]
+description = "Fisher information as a model-free measure of proximity to criticality in neural systems"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Yuewei Du" },
+    { name = "Alberto Liardi" },
+    { name = "Hardik Rajpal" },
+    { name = "Henrik Jeldtoft Jensen" },
+]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "joblib>=1.3",
+    "matplotlib>=3.7",
+    "tqdm>=4.60",
+]
+
+[project.optional-dependencies]
+examples = ["numba>=0.57"]
+test = ["pytest>=7", "numba>=0.57"]
+
+[project.urls]
+Paper = "https://arxiv.org/abs/2609.07624"
+Source = "https://github.com/yuewei-du/Fisher_information_neural_criticality"
+
+[tool.setuptools]
+packages = ["fim"]
+
+[tool.setuptools.dynamic]
+version = { attr = "fim.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# the examples are not installed; tests import them from the repo root
+pythonpath = ["."]
+markers = ["slow: end-to-end tests that run the full estimator"]

@@ -1,24 +1,52 @@
-from __future__ import division, print_function
+"""
+npfi.py -- non-parametric Fisher information from finite differences.
+
+Adapted from npfi v0.1 by Omri Har-Shemesh, Computational Science Lab,
+University of Amsterdam: https://github.com/omrihar/1_npfi
+
+References:
+    [1] O. Har-Shemesh, R. Quax, B. Minano, A.G. Hoekstra, P.M.A. Sloot,
+        Nonparametric estimation of Fisher information from real data,
+        Phys. Rev. E 93, 023301 (2016).
+    [2] J.B. Kinney, Estimation of probability densities using scale-free
+        field theories, Phys. Rev. E 90, 011301(R) (2014).
+
+Changes from upstream: ported to Python 3; one-sided (forward/backward)
+differences added to ``npfi`` through the ``direction`` argument; the 2D
+entry points and unused helpers removed.
+
+License:
+    The MIT License (MIT)
+
+    Copyright (c) 2015 Omri Har-Shemesh
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+"""
+
+import timeit
+
 import numpy as np
 from scipy.integrate import quad
 from scipy.stats import gaussian_kde
 
+from .deft import deft_1d
 
-HAS_DEFT = True
-try:
-    # Vendored inside this package; fall back to a standalone DEFT install.
-    from .deft import deft_1d
-except ImportError:
-    try:
-        from deft import deft_1d
-    except ImportError:
-        print("Didn't find DEFT package, disabling method='deft' in PDF computation.")
-        print("You can obtain DEFT at:")
-        print("https://github.com/jbkinney/13_deft")
-        HAS_DEFT = False
-
-
-import timeit
 
 def npfi(pdfs, dt, bounds=(-np.inf, np.inf), logarithmic=False,
          zero=1e-10, simple=False, N=None, verbose=False, direction="central"):
@@ -171,8 +199,6 @@ def get_pdfs_from_data(data, method="deft", G=100, alpha=1, bbox="adjust", facto
     """
     assert hasattr(data, '__iter__')
     assert isinstance(method, str) and method in ["deft", "gaussian_kde"]
-    if method == "deft" and not HAS_DEFT:
-        raise Exception("DEFT has been disabled.")
     assert isinstance(alpha, int) and alpha > 0
     assert isinstance(factor, (int, float)) and factor > 0
     assert (isinstance(bbox, str) and bbox == "adjust") or \

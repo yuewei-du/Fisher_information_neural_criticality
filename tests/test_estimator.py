@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pytest
 
@@ -57,11 +59,28 @@ def test_per_parameter_samples_3d_raises():
 
 
 def test_invalid_direction_raises():
+    with pytest.raises(ValueError, match="direction"):
+        FisherInfoCalculator(G=50, alpha=1, N_rep=1, N_sim=10,
+                             calc_method="sigma", direction="sideways")
+
     calculator = FisherInfoCalculator(G=50, alpha=1, N_rep=1, N_sim=10,
                                       calc_method="sigma")
     with pytest.raises(ValueError, match="direction"):
         calculator.calculate_fisher_info(np.zeros((10, 3)), 1, 1, 0.1,
                                          method="sigma", direction="sideways")
+
+
+@pytest.mark.parametrize("calc_method", ["branchingratio", "central", ""])
+def test_unknown_calc_method_raises(calc_method):
+    # the pre-rename "branchingratio" used to fall back to central silently
+    with pytest.raises(ValueError, match="calc_method"):
+        compute_fim(np.zeros((10, 3)), np.arange(3.0), [1],
+                    calc_method=calc_method)
+
+
+def test_importing_fim_does_not_configure_logging():
+    assert logging.getLogger("fim.estimator").handlers == []
+    assert logging.getLogger("fim.estimator").level == logging.NOTSET
 
 
 # ---- summary metrics -------------------------------------------------------
@@ -110,10 +129,9 @@ def gaussian_location_data():
 
 
 def run_seeded(data, theta, index_range, **kwargs):
-    # n_jobs=1 keeps the bootstrap in this process, so the global seed holds
-    np.random.seed(0)
+    kwargs = {"n_jobs": 1, "seed": 0, **kwargs}
     return compute_fim(data, theta, index_range, G=100, alpha=1, N_rep=2,
-                       N_sim=N_SAMPLES, n_jobs=1, **kwargs)
+                       N_sim=N_SAMPLES, **kwargs)
 
 
 @pytest.mark.slow
@@ -151,8 +169,18 @@ def test_compute_fim_one_sided_recovers_gaussian_fi(gaussian_location_data):
 
 
 @pytest.mark.slow
-def test_bootstrap_is_reproducible_with_global_seed(gaussian_location_data):
+def test_seed_makes_bootstrap_reproducible_for_any_n_jobs(
+        gaussian_location_data):
     data, theta = gaussian_location_data
-    first = run_seeded(data, theta, [10])
-    second = run_seeded(data, theta, [10])
-    np.testing.assert_array_equal(first[0], second[0])
+    serial = run_seeded(data, theta, [10], n_jobs=1)
+    parallel = run_seeded(data, theta, [10], n_jobs=2)
+    for a, b in zip(serial, parallel):
+        np.testing.assert_array_equal(a, b)
+
+
+@pytest.mark.slow
+def test_different_seeds_give_different_resamples(gaussian_location_data):
+    data, theta = gaussian_location_data
+    first = run_seeded(data, theta, [10], seed=0)
+    second = run_seeded(data, theta, [10], seed=1)
+    assert not np.array_equal(first[0], second[0])

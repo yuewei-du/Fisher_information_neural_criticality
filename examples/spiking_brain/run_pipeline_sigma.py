@@ -1,20 +1,24 @@
-import sys
+"""
+Pipeline B: FIM of the observed branching ratio sigma. Run from the repo root:
+
+    python -m examples.spiking_brain.run_pipeline_sigma
+"""
+
 import time
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from fim import (                                      # noqa: E402
+from fim import (
     compute_fim,
     compute_fim_metrics,
     digitize_into_bins_adaptive,
     plot_fim_heatmap,
     plot_histogram_and_pdf,
 )
-from examples.spiking_brain.model import NetworkParams        # noqa: E402
-from examples.spiking_brain.simulate import simulate_para_sigma  # noqa: E402
+from examples.spiking_brain.model import NetworkParams
+from examples.spiking_brain.simulate import simulate_para_sigma
 
 
 def main():

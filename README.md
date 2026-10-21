@@ -53,14 +53,19 @@ and parameters, see the Methods section of [Du et al. (2026)](https://arxiv.org/
 ## Install and run
 
 ```bash
-pip install -r requirements.txt
+pip install -e ".[examples]"
 
 # Pipeline A: FIM of the control parameter
-python examples/spiking_brain/run_pipeline_lambda.py
+python -m examples.spiking_brain.run_pipeline_lambda
 
 # Pipeline B: FIM of the observed branching ratio
-python examples/spiking_brain/run_pipeline_sigma.py
+python -m examples.spiking_brain.run_pipeline_sigma
 ```
+
+Run the example scripts from the repository root. To use only the estimator,
+`pip install -e .` is enough; the `examples` extra adds `numba` for the
+spiking network simulation. To run the tests: `pip install -e ".[test]"`,
+then `pytest`.
 
 Both scripts write their `.npz` files and figures to `outputs/`.
 

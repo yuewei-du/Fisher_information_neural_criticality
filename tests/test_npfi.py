@@ -121,6 +121,14 @@ def test_get_bbox_pads_by_factor():
                     factor=0.25) == (-1.0, 5.0)
 
 
+def test_deft_does_not_change_global_warning_filters():
+    import warnings
+
+    before = list(warnings.filters)
+    get_pdfs_from_data([np.random.default_rng(0).normal(size=500)], G=50)
+    assert warnings.filters == before
+
+
 def test_deft_density_is_normalised_and_close_to_truth():
     rng = np.random.default_rng(0)
     samples = rng.normal(0.0, 1.0, 20000)

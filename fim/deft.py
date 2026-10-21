@@ -21,11 +21,38 @@ Dependencies:
     numpy
     copy
     time
+
+Provenance:
+    Upstream: https://github.com/jbkinney/13_deft (v1.1, Python 2), ported
+    to Python 3. Warnings raised during the estimate are silenced inside
+    deft_1d / deft_2d only, instead of process-wide at import.
+
+License:
+    The MIT License (MIT)
+
+    Copyright (c) 2014 Justin B. Kinney
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 '''
 
+import functools
 import warnings
-warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
-warnings.filterwarnings("ignore", category=RuntimeWarning)
 import numpy as np
 import scipy as sp
 from scipy.integrate import ode
@@ -42,6 +69,18 @@ import time
 
 
 class Results: pass;
+
+
+def _quiet(func):
+    """Silence the numerical warnings DEFT raises, for this call only."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", PendingDeprecationWarning)
+            warnings.simplefilter("ignore", RuntimeWarning)
+            warnings.simplefilter("ignore", UserWarning)
+            return func(*args, **kwargs)
+    return wrapper
 
 
 def get_log_det_Lambda(Lambda, coeff):
@@ -85,9 +124,10 @@ class QStarFunction:
         """Evaluate the density at ``x``."""
         return np.exp(-self.phi_star_func(x)) / self.Z
     
+@_quiet
 def deft_1d(xis_raw, bbox, G=100, alpha=2, num_samples=0, ti_shift=-5, 
     tf_shift=0, tol=1E-3, verbose=False, details=False, spline_type='cubic'):
-    '''
+    r'''
     Performs DEFT density estimation in 1D
     
     Args:
@@ -261,7 +301,6 @@ def deft_1d(xis_raw, bbox, G=100, alpha=2, num_samples=0, ti_shift=-5,
     solver.set_initial_value(phi0, t_i)
     # suppress Fortran-printed warning
     solver._integrator.iwork[2] = -1
-    warnings.filterwarnings("ignore", category=UserWarning)
     
     # Make containers        
     phis = []
@@ -500,8 +539,9 @@ def deft_1d(xis_raw, bbox, G=100, alpha=2, num_samples=0, ti_shift=-5,
 # 2D DEFT
 ################################################################################
 
+@_quiet
 def deft_2d(xis_raw, yis_raw, bbox, G=20, alpha=2, num_samples=0, tol=1E-3, ti_shift=-1, tf_shift=0, verbose=False, details=False):
-    '''
+    r'''
     Performs DEFT density estimation in 2D
     
     Args:
@@ -674,7 +714,6 @@ def deft_2d(xis_raw, yis_raw, bbox, G=20, alpha=2, num_samples=0, tol=1E-3, ti_s
     solver.set_initial_value(phi0, t_i)
     # suppress Fortran-printed warning
     solver._integrator.iwork[2] = -1
-    warnings.filterwarnings("ignore", category=UserWarning)
     
     # Make containers        
     phis = []
