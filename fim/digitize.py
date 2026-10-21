@@ -1,5 +1,9 @@
-import numpy as np
+"""Adaptive binning of a (parameter, observable) cloud into per-bin samples."""
+
 import logging
+
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 __all__ = [

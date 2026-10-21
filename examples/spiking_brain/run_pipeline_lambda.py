@@ -22,7 +22,7 @@ def main():
     T = 4000                 # number of time steps per realisation
     transient_cutoff = 2000   # steps discarded as transients
     N = 200                   # number of nodes in the network
-    n_sim = n_trials             # numebr of samples per bin 
+    n_sim = n_trials             # number of samples per bin
     n_jobs = 7
     lambda_range = np.linspace(0.9, 1.1, 81) # parameter grid
 

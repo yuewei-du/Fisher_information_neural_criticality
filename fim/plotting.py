@@ -1,10 +1,13 @@
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
-from .npfi import get_pdfs_from_data
+"""Diagnostic and result figures."""
 
 import logging
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import LogNorm
+
+from .npfi import get_pdfs_from_data
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +36,11 @@ def plot_histogram_and_pdf(data_list, G, alpha, para=None,
             ``data_center`` is histogrammed
         G (int): number of grid points in DEFT
         alpha (int): smoothness parameter in DEFT
-        para (float or None): parameter value, shownon the x axis
-        param_label (str): LaTeX name of the parameter, whoen in the x label
-
+        para (float or None): parameter value, shown in the x label
+        param_label (str): LaTeX name of the parameter, shown in the x label
+        save_path (path or None): directory to write the figure to
+        filename (str or None): figure filename; the figure is saved only
+            when both ``save_path`` and ``filename`` are given
         show (bool): call ``plt.show()``
 
     Returns:
@@ -118,7 +123,10 @@ def plot_fim_heatmap(out_dir, lambda_range, *, N=1000, T=20000, n_sim=10000,
             loaded curves
         n_sigma (int): sigma grid points of the heatmap
         cmap (str): colormap
-
+        save_path (path or None): directory to write the figure to
+        filename (str or None): figure filename; the figure is saved only
+            when both ``save_path`` and ``filename`` are given
+        show (bool): call ``plt.show()``
 
     Returns:
         None

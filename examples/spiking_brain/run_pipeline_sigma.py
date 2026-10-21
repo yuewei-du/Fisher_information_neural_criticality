@@ -15,7 +15,6 @@ from fim import (
     compute_fim_metrics,
     digitize_into_bins_adaptive,
     plot_fim_heatmap,
-    plot_histogram_and_pdf,
 )
 from examples.spiking_brain.model import NetworkParams
 from examples.spiking_brain.simulate import simulate_para_sigma
@@ -23,8 +22,8 @@ from examples.spiking_brain.simulate import simulate_para_sigma
 
 def main():
     # ---- configuration ---------------------------------------------------
-    lambda_range = np.linspace(0.9, 1.1, 9) #paramter grid
-    n_trials = 1000            # number of ealisations
+    lambda_range = np.linspace(0.9, 1.1, 9)  # parameter grid
+    n_trials = 1000            # number of realisations
     T = 20000                 # time steps per realisation
     transient_cutoff = 2000   # steps discarded as transients
     N = 1000                  # number of nodes

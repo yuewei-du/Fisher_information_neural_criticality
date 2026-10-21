@@ -1,6 +1,6 @@
 """
 The spiking network used as the running example in this repo: ``N`` nodes,
-each excitatory (+1) with probability ``alpha`` and inhibitory (-g) otherwise,
+each inhibitory (-g) with probability ``alpha`` and excitatory (+1) otherwise,
 connected with probability ``p`` and scaled so that the largest eigenvalue of the
 connectivity matrix equals ``lambda``. The state is binary and updated
 synchronously at every time step.
