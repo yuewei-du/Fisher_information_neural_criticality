@@ -62,7 +62,7 @@ python examples/spiking_brain/run_pipeline_lambda.py
 python examples/spiking_brain/run_pipeline_sigma.py
 ```
 
-Both scripts write their `.npz` and their figures to `outputs/` . 
+Both scripts write their `.npz` files and figures to `outputs/`.
 
 ---
 
@@ -111,12 +111,12 @@ FI_mean, FI_low, FI_up, eps = compute_fim(
 backward = compute_fim(
     data, param_values, index_range,
     G=100, alpha=1, N_sim=10000, N_rep=32, n_jobs=-2,
-    calc_method="branchingratio", direction="backward", logarithmic=True,
+    calc_method="sigma", direction="backward", logarithmic=True,
 )
 forward = compute_fim(
     data, param_values, index_range,
     G=100, alpha=1, N_sim=10000, N_rep=32, n_jobs=-2,
-    calc_method="branchingratio", direction="forward", logarithmic=True,
+    calc_method="sigma", direction="forward", logarithmic=True,
 )
 FI_mean  = (backward[0] + forward[0]) / 2  # average of the two FIM estimates
 ```
@@ -145,8 +145,8 @@ that `G` and `alpha` are appropriately chosen.
 | `alpha` | `1` | smoothness parameter in [npfi](https://doi.org/10.1103/PhysRevE.93.023301) |
 | `N_sim` | `10000` | number of samples fed to [npfi](https://doi.org/10.1103/PhysRevE.93.023301) for nonparametric probability density estimation. Recommended minimum: 10000 |
 | `N_rep` | `32` | number of bootstrap resamples |
-| `calc_method` | `None` | `None` computes the numerical derivative symmetrically using `(θ−dt, θ, θ+dt)` (Pipeline A); `"branchingratio"` uses a one-sided derivative `(θ, θ+dt)` or `(θ, θ−dt)` — necessary when probability distributions at nearby parameter points differ substantially (Pipeline B) |
-| `direction` | `"forward"` | which side to use for the one-sided numerical derivative: `"forward"` uses `(θ, θ+dt)`, `"backward"` uses `(θ, θ−dt)`; only used when `calc_method="branchingratio"` |
+| `calc_method` | `None` | `None` computes the numerical derivative symmetrically using `(θ−dt, θ, θ+dt)` (Pipeline A); `"sigma"` uses a one-sided derivative `(θ, θ+dt)` or `(θ, θ−dt)` — necessary when probability distributions at nearby parameter points differ substantially (Pipeline B) |
+| `direction` | `"forward"` | which side to use for the one-sided numerical derivative: `"forward"` uses `(θ, θ+dt)`, `"backward"` uses `(θ, θ−dt)`; only used when `calc_method="sigma"` |
 | `logarithmic` | `False` | `False` differentiates `p(x│θ)` directly and is generally more accurate as discussed in [npfi](https://doi.org/10.1103/PhysRevE.93.023301); `True` differentiates `log p(x│θ)` instead, which can improve numerical stability when `p` is very small |
 
 ---
@@ -159,8 +159,8 @@ fim/
   estimator.py   FisherInfoCalculator, compute_fim, compute_fim_metrics
   digitize.py    adaptive binning of a (parameter, observable) cloud
   plotting.py    plot_histogram_and_pdf, plot_fim_heatmap
-  npfi.py        non-parametric FI from finite differences  (vendored)
-  deft.py        DEFT density estimation                    (vendored)
+  npfi.py        non-parametric FI from finite differences  (adapted)
+  deft.py        DEFT density estimation                    (adapted)
 
 examples/spiking_brain/
   model.py                random network, compiled time evolution
@@ -169,14 +169,14 @@ examples/spiking_brain/
   run_pipeline_sigma.py   Pipeline B, end to end
 
 figures/
-  pipeline_a.png          Fig. 3a, written by run_pipeline_lambda.py
-  pipeline_b.png          Fig. 3b, written by run_pipeline_sigma.py
+  pipeline_a.png          Fig. 3a, copy of the figure written by run_pipeline_lambda.py
+  pipeline_b.png          Fig. 3b, copy of the figure written by run_pipeline_sigma.py
 ```
 
 
-`npfi.py` and `deft.py` are vendored from third-party sources:
-- `npfi.py` [omrihar_npfi](https://github.com/omrihar/1_npfi) — MIT, Copyright (c) 2015 Omri Har-Shemesh
-- `deft.py` [Kinney_deft](https://github.com/jbkinney/13_deft) — MIT, Copyright (c) 2014 Justin B. Kinney
+`npfi.py` and `deft.py` are adapted from third-party sources, both MIT licensed:
+- `npfi.py` [omrihar_npfi](https://github.com/omrihar/1_npfi) — Copyright (c) 2015 Omri Har-Shemesh. Ported to Python 3, and extended with the `direction` keyword and the one-sided (forward/backward) difference schemes used by Pipeline B.
+- `deft.py` [Kinney_deft](https://github.com/jbkinney/13_deft) — Copyright (c) 2014 Justin B. Kinney. Ported to Python 3.
 
 ---
 

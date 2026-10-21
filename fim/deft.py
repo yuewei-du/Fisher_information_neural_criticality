@@ -23,7 +23,6 @@ Dependencies:
     time
 '''
 
-# Import stuff
 import warnings
 warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -41,11 +40,22 @@ import time
 
 
 
-# Empty container class for storing results
+
 class Results: pass;
 
-# Used to compute the log determinant of Lambda
+
 def get_log_det_Lambda(Lambda, coeff):
+    """
+    Log-determinant of ``coeff * Lambda``, rescaling ``coeff`` until the
+    determinant is finite.
+
+    Args:
+        Lambda (ndarray): square matrix
+        coeff (float): initial scale factor
+
+    Returns:
+        (log_det, coeff): the log-determinant and the scale that made it finite.
+    """
     G = Lambda.shape[0]
     ok_value = False
     while not ok_value:
@@ -65,11 +75,14 @@ def get_log_det_Lambda(Lambda, coeff):
 # 1D DEFT
 ################################################################################
 class QStarFunction:
+    """Normalised DEFT density ``Q*(x) = exp(-phi*(x)) / Z``."""
+
     def __init__(self, phi_star_func, Z):
         self.phi_star_func = phi_star_func
         self.Z = Z
-        
+
     def __call__(self, x):
+        """Evaluate the density at ``x``."""
         return np.exp(-self.phi_star_func(x)) / self.Z
     
 def deft_1d(xis_raw, bbox, G=100, alpha=2, num_samples=0, ti_shift=-5, 

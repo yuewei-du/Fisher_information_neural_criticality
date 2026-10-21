@@ -1,9 +1,5 @@
-"""Adaptive binning of a (parameter, observable) cloud into per-bin samples."""
-
 import numpy as np
-
 import logging
-
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -44,7 +40,9 @@ def digitize_into_bins_adaptive(all_para, all_variable, initial_bin_width=0.01,
 
     sort_idx = np.argsort(all_para)
 
-    def check_bin_width_fast_v3(bin_width):
+    def check_bin_width(bin_width):
+        """True if every bin within ``bins_per_side`` of ``center`` holds at
+        least ``N_sim`` samples at this width."""
         p_min, p_max = all_para[sort_idx[0]], all_para[sort_idx[-1]]
         if (center - p_min) < bins_per_side * bin_width or \
            (p_max - center) < bins_per_side * bin_width:
@@ -60,7 +58,7 @@ def digitize_into_bins_adaptive(all_para, all_variable, initial_bin_width=0.01,
     last_success_bw = None
 
     while current_bw > 1e-7:
-        if check_bin_width_fast_v3(current_bw):
+        if check_bin_width(current_bw):
             last_success_bw = current_bw
             current_bw *= 0.9
         else:
@@ -70,7 +68,7 @@ def digitize_into_bins_adaptive(all_para, all_variable, initial_bin_width=0.01,
         current_bw = last_success_bw
         for _ in range(n_trials):
             test_bw = current_bw * ratio
-            if check_bin_width_fast_v3(test_bw):
+            if check_bin_width(test_bw):
                 current_bw = test_bw
                 optimal_bin_width = test_bw
 

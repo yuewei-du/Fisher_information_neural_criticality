@@ -1,11 +1,7 @@
-"""Diagnostic and result figures."""
-
 import os
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-
 from .npfi import get_pdfs_from_data
 
 import logging
@@ -35,12 +31,11 @@ def plot_histogram_and_pdf(data_list, G, alpha, para=None,
         data_list (list): ``[data_center, data_left, data_right]``, the same
             three-sample window the estimator differences; only
             ``data_center`` is histogrammed
-        G (int): number of grid points
-        alpha (int): DEFT smoothness parameter
-        para (float or None): parameter value, shown in the x label
-        param_label (str): LaTeX name of the parameter on the x axis
-        save_path (path or None): directory to write the figure to
-        filename (str or None): figure filename
+        G (int): number of grid points in DEFT
+        alpha (int): smoothness parameter in DEFT
+        para (float or None): parameter value, shownon the x axis
+        param_label (str): LaTeX name of the parameter, whoen in the x label
+
         show (bool): call ``plt.show()``
 
     Returns:
@@ -95,7 +90,7 @@ def plot_histogram_and_pdf(data_list, G, alpha, para=None,
 
 
 def _load_fim_curve(out_dir, lam, N, T, n_sim, n_rep):
-
+    """Load one saved FI curve: ``(param, fim_mean, peak_height, peak_width)``."""
     path = os.path.join(
         out_dir,
         f"fim_para_sigma_lambda{lam:.3f}_N{N}_T{T}"
@@ -111,8 +106,23 @@ def _load_fim_curve(out_dir, lam, N, T, n_sim, n_rep):
 def plot_fim_heatmap(out_dir, lambda_range, *, N=1000, T=20000, n_sim=10000,
                      n_rep=1, sigma_range=None, n_sigma=500, cmap="turbo",
                      save_path=None, filename=None, show=True):
+    """
+    Heatmap of the FIM over ``(sigma, lambda)`` plus peak height and
+    width versus ``lambda``.
+
+    Args:
+        out_dir (path): directory holding the saved per-lambda FI curves
+        lambda_range (iterable): eigenvalues whose curves are loaded
+        N, T, n_sim, n_rep: keys of the curve filenames to load
+        sigma_range (tuple or None): sigma span; defaults to the union of the
+            loaded curves
+        n_sigma (int): sigma grid points of the heatmap
+        cmap (str): colormap
 
 
+    Returns:
+        None
+    """
     lambdas = np.sort(np.asarray(lambda_range, dtype=float))
     curves = [_load_fim_curve(out_dir, lam, N, T, n_sim, n_rep)
               for lam in lambdas]

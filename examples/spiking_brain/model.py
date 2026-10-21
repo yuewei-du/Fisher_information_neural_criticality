@@ -1,7 +1,7 @@
 """
-The spiking network used as the running example in this repo: ``N`` units,
+The spiking network used as the running example in this repo: ``N`` nodes,
 each excitatory (+1) with probability ``alpha`` and inhibitory (-g) otherwise,
-connected with probability ``p`` and scaled so that the spectral radius of the
+connected with probability ``p`` and scaled so that the largest eigenvalue of the
 connectivity matrix equals ``lambda``. The state is binary and updated
 synchronously at every time step.
 """
@@ -21,10 +21,10 @@ class NetworkParams:
     Structural parameters of the random network.
 
     Args:
-        N (int): number of units
-        alpha (float): fraction of excitatory units
+        N (int): number of nodes
+        alpha (float): fraction of inhibitory nodes
         p (float): connection probability
-        g (float): inhibitory weight, relative to excitatory
+        g (float): relative strength
     """
     N: int = 400
     alpha: float = 0.2
@@ -33,7 +33,7 @@ class NetworkParams:
 
     @property
     def pext_ratio(self):
-        """Per-unit, per-step probability of an external kick."""
+        """Probability of an external input."""
         return 1.0 / (self.N * 200)
 
 
@@ -43,13 +43,13 @@ def generate_random_network(rng, N, alpha=0.2, p=0.2, g=2.0):
 
     Args:
         rng (Generator): numpy random generator
-        N (int): number of units
-        alpha (float): fraction of excitatory units
+        N (int): number of nodes
+        alpha (float): fraction of inhibitory nodes
         p (float): connection probability
-        g (float): inhibitory weight, relative to excitatory
+        g (float): relative strength
 
     Returns:
-        csr_matrix: the base network, whose spectral radius the caller
+        csr_matrix: the base network, whose largest eigenvalue the caller
             rescales to the target control parameter.
     """
     neuron_types = np.where(rng.random(N) > alpha, 1, -g)
@@ -69,12 +69,12 @@ def evolve(W_data, W_indices, W_indptr, rand_buffer, pext_ratio, T, N):
         W_data, W_indices, W_indptr: the three CSR arrays of the rescaled
             connectivity matrix
         rand_buffer (ndarray): shape ``(T, N)`` of uniform draws
-        pext_ratio (float): per-unit, per-step probability of an external kick
+        pext_ratio (float): probability of an external input
         T (int): number of time steps
-        N (int): number of units
+        N (int): number of nodes
 
     Returns:
-        ndarray: the state at every step, shape ``(T, N)``.
+        ndarray: the state at every time step, shape ``(T, N)``.
     """
     s = np.zeros((T, N), dtype=np.uint8)
 

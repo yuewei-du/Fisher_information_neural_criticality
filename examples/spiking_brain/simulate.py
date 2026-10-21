@@ -1,17 +1,15 @@
 """
-Simulation drivers for the spiking network example: ``simulate_para_lambda``
+Simulation for the spiking network example: ``simulate_para_lambda``
 produces one scalar observable per trial at a fixed control parameter, and
 ``simulate_para_sigma`` produces the activity and branching-ratio time series.
 """
 
 import gc
 import logging
-
 import numpy as np
 from joblib import Parallel, delayed
 from scipy.sparse.linalg import ArpackNoConvergence, eigs
 from tqdm.auto import tqdm
-
 from .model import NetworkParams, evolve, generate_random_network
 
 logger = logging.getLogger(__name__)
@@ -25,7 +23,7 @@ _MAX_EXTRA_FACTOR = 10
 
 def _dominant_eigenvalue(sparse_base, trial_id):
     """
-    Largest-magnitude eigenvalue of the connectivity matrix.
+    Largest eigenvalue of the connectivity matrix.
 
     Args:
         sparse_base (csr_matrix): the unscaled network
@@ -43,32 +41,30 @@ def _dominant_eigenvalue(sparse_base, trial_id):
 
 
 def _is_complex(value):
-    """Whether a dominant eigenvalue is a genuine complex pair, not float noise."""
+    """Whether the eigenvalue is a genuine complex pair, not float noise."""
     return abs(value.imag) > COMPLEX_TOL * max(abs(value), 1.0)
 
 
 def _lambda_single_trial(lambda_target, params, T, transient_cutoff, trial_id,
                          testing):
     """
-    One realisation at a fixed control parameter.
+    One realisation at a fixed lambda.
 
     Args:
         lambda_target (float): the spectral radius to rescale the network to
         params (NetworkParams): structural parameters of the network
         T (int): number of time steps
-        transient_cutoff (int): steps discarded before averaging
-        trial_id (int): trial index, which also seeds the generator
+        transient_cutoff (int): steps discarded as transients
+        trial_id (int): trial index
         testing (bool): return the cumulative mean activity at 25/50/75/100% of
             the recorded window instead of the mean activity
 
     Returns:
-        float or ndarray or None: the time-averaged firing rate, or ``None`` if
-            the network was dropped.
+        float or ndarray or None: the time-averaged firing rate.
     """
     rng = np.random.default_rng(trial_id)
 
-    sparse_base = generate_random_network(rng, params.N, params.alpha,
-                                          params.p, params.g)
+    sparse_base = generate_random_network(rng, params.N, params.alpha,params.p, params.g)
 
 
     eigenvalue = _dominant_eigenvalue(sparse_base, trial_id)
@@ -97,17 +93,17 @@ def _lambda_single_trial(lambda_target, params, T, transient_cutoff, trial_id,
     return s.mean()
 
 
-def simulate_para_lambda(lambda_target, params=None, T=10000, n_trials=10,
+def simulate_para_lambda(lambda_target, params=None, T=10000, n_trials=10000,
                          transient_cutoff=2000, testing=False, n_jobs=-2):
     """
-    Collect ``n_trials`` realisations at a fixed control parameter.
+    Collect ``n_trials`` realisations at a fixed lambda.
 
     Args:
         lambda_target (float): the spectral radius to rescale the network to
         params (NetworkParams or None): structural parameters of the network
         T (int): number of time steps per realisation
         n_trials (int): number of valid realisations to collect
-        transient_cutoff (int): steps discarded before averaging
+        transient_cutoff (int): steps discarded as transients
         testing (bool): see :func:`_lambda_single_trial`
         n_jobs (int): joblib worker count
 
@@ -157,22 +153,21 @@ def simulate_para_lambda(lambda_target, params=None, T=10000, n_trials=10,
 
 def _sigma_single_trial(lambda_target, params, T, transient_cutoff, trial_id):
     """
-    One realisation at a fixed control parameter, as time series.
+    One realisation at a fixed lambda, as time series.
 
     Args:
         lambda_target (float): the spectral radius to rescale the network to
         params (NetworkParams): structural parameters of the network
         T (int): number of time steps
-        transient_cutoff (int): steps discarded before the series starts
+        transient_cutoff (int): steps discarded as transients
         trial_id (int): trial index, which also seeds the generator
 
     Returns:
-        dict or None: ``{"S_t": activity, "bran_ratio": branching ratio}``, or
+        dict or None: ``{"S_t": activity, "sigma": branching ratio}``, or
             ``None`` if the network was dropped.
     """
     rng = np.random.default_rng(trial_id)
-    sparse_base = generate_random_network(rng, params.N, params.alpha,
-                                          params.p, params.g)
+    sparse_base = generate_random_network(rng, params.N, params.alpha,params.p, params.g)
 
     eigenvalue = _dominant_eigenvalue(sparse_base, trial_id)
     if eigenvalue is None:
@@ -199,19 +194,19 @@ def _sigma_single_trial(lambda_target, params, T, transient_cutoff, trial_id):
     valid_idx = np.arange(transient_cutoff, T - 1)
 
     with np.errstate(divide="ignore", invalid="ignore"):
-        bran_ratio = np.where(
+        sigma = np.where(
             S_t[valid_idx] > 0,
             S_t[valid_idx + 1] / S_t[valid_idx],
             np.nan,
         )
 
-    return {"S_t": S_t[valid_idx], "bran_ratio": bran_ratio}
+    return {"S_t": S_t[valid_idx], "sigma": sigma}
 
 
-def simulate_para_sigma(lambda_target, params=None, T=10000, n_trials=10,
+def simulate_para_sigma(lambda_target, params=None, T=10000, n_trials=2000,
                         transient_cutoff=2000, n_jobs=-2):
     """
-    Collect ``n_trials`` realisations at a fixed control parameter and return
+    Collect ``n_trials`` realisations at a fixed lambda and return
     their activity and branching-ratio time series.
 
     Args:
@@ -223,7 +218,7 @@ def simulate_para_sigma(lambda_target, params=None, T=10000, n_trials=10,
         n_jobs (int): joblib worker count
 
     Returns:
-        (S_t, bran_ratio): two ndarrays of shape
+        (S_t, sigma): two ndarrays of shape
             ``(n_trials * n_valid_steps,)``, concatenated across trials.
     """
     params = params or NetworkParams()
@@ -264,9 +259,9 @@ def simulate_para_sigma(lambda_target, params=None, T=10000, n_trials=10,
         )
 
     S_t = np.concatenate([r["S_t"] for r in kept])
-    bran_ratio = np.concatenate([r["bran_ratio"] for r in kept])
+    sigma = np.concatenate([r["sigma"] for r in kept])
 
-    logger.info("S_t shape: %s, bran_ratio shape: %s", S_t.shape,
-                bran_ratio.shape)
+    logger.info("S_t shape: %s, sigma shape: %s", S_t.shape,
+                sigma.shape)
 
-    return S_t, bran_ratio
+    return S_t, sigma

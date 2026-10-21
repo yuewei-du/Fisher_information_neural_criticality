@@ -1,28 +1,28 @@
 import sys
 import time
 from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from fim import compute_fim, plot_histogram_and_pdf      # noqa: E402
-from fim.estimator import (                              # noqa: E402
+from fim import compute_fim, plot_histogram_and_pdf     
+from fim.estimator import (                              
     DEFAULT_EPSILON, DEFAULT_EPSILON_TOLERANCE,
 )
-from examples.spiking_brain.model import NetworkParams   # noqa: E402
-from examples.spiking_brain.simulate import simulate_para_lambda  # noqa: E402
+from examples.spiking_brain.model import NetworkParams   
+from examples.spiking_brain.simulate import simulate_para_lambda  
 
 
 def main():
     # ---- configuration ---------------------------------------------------
     n_trials = 10000           # number of realisations
-    T = 4000                 # time steps per realisation
-    transient_cutoff = 2000   # steps discarded before averaging
-    N = 200                   
+    T = 4000                 # number of time steps per realisation
+    transient_cutoff = 2000   # steps discarded as transients
+    N = 200                   # number of nodes in the network
     n_sim = n_trials             # numebr of samples per bin 
     n_jobs = 7
+    lambda_range = np.linspace(0.9, 1.1, 81) # parameter grid
 
     # ---- npfi parameters ---------------------------------------------------
     G = 100                   # number of grid points in DEFT
@@ -38,7 +38,6 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     network_params = NetworkParams(N=N)
 
-    lambda_range = np.linspace(0.9, 1.1, 81) # parameter grid
 
     # ---- stage 1: simulate the data and save it ---------------------------
     t_start = time.perf_counter()
@@ -88,7 +87,7 @@ def main():
         simulate_data, lambda_range, np.arange(index_start, index_stop),
         G=G, alpha=alpha, N_rep=n_rep, N_sim=n_sim,
         calc_method=None,
-        logarithmic=True, n_jobs=n_jobs,
+        logarithmic=False, n_jobs=n_jobs,
     )
 
     np.savez_compressed(fim_path,

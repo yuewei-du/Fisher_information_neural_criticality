@@ -1,7 +1,6 @@
 import sys
 import time
 from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -21,23 +20,23 @@ from examples.spiking_brain.simulate import simulate_para_sigma  # noqa: E402
 def main():
     # ---- configuration ---------------------------------------------------
     lambda_range = np.linspace(0.9, 1.1, 9) #paramter grid
-    critical_sigma = 1.0      
     n_trials = 1000            # number of ealisations
     T = 20000                 # time steps per realisation
-    transient_cutoff = 2000   # steps discarded before the trace starts
-    N = 1000                  
+    transient_cutoff = 2000   # steps discarded as transients
+    N = 1000                  # number of nodes
     n_jobs = 7
+    critical_sigma = 1.0      
 
     # ---- npfi parameters ---------------------------------------------------
     G = 50                    # Number of grid points in DEFT 
     alpha = 1                 # Smoothness parameter in DEFT 
     n_sim = 10000             # number of samples per bin
-    n_rep = 7                # bootstrap resamples
+    n_rep = 1                # bootstrap resamples
 
     bin_width = 0.01          # initial bin width for the search
-    bins_per_side = 5         # bins kept either side of critical_sigma
-    window_half_width = 10    # bins estimated either side of critical_sigma
-    show_figures = True
+    bin_width_check_halfwidth = 5
+    fim_estimation_halfwidth = 10
+    show_figures = False
 
     out_dir = Path(__file__).resolve().parents[2] / "outputs" / "sigma"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -54,7 +53,7 @@ def main():
         )
 
         # ---- stage 1: simulate the time series and save it ---------------------
-        t_start = time.perf_counter()
+        """ t_start = time.perf_counter()
 
         S_t, sigma_t = simulate_para_sigma(
             lambda_target, network_params, T=T, n_trials=n_trials,
@@ -67,7 +66,7 @@ def main():
 
         elapsed = time.perf_counter() - t_start
         minutes, seconds = divmod(elapsed, 60)
-        print(f"Simulation took {int(minutes)}m {int(seconds)}s")
+        print(f"Simulation took {int(minutes)}m {int(seconds)}s") """
 
         # ---- stage 2: load the time series and estimate FIM --------------------
         with np.load(simulate_path) as saved:
@@ -83,7 +82,8 @@ def main():
         simulate_data, bin_centers, d_para = digitize_into_bins_adaptive(
             sigma, activity,
             initial_bin_width=bin_width, N_sim=n_sim,
-            center=critical_sigma, bins_per_side=bins_per_side,max_bin = 20
+            center=critical_sigma,
+            bins_per_side=bin_width_check_halfwidth, max_bin=20,
         )
 
         if len(bin_centers) == 0:
@@ -99,8 +99,9 @@ def main():
         center_index = int(np.argmin(np.abs(bin_centers - critical_sigma)))
 
 
-        index_start = max(center_index - window_half_width, 1)
-        index_stop = min(center_index + window_half_width + 1, len(bin_centers) - 1)
+        index_start = max(center_index - fim_estimation_halfwidth, 1)
+        index_stop = min(center_index + fim_estimation_halfwidth + 1,
+                         len(bin_centers) - 1)
         print(f"estimating indices {index_start}..{index_stop - 1}, "
               f"sigma {bin_centers[index_start]:.4f} to {bin_centers[index_stop - 1]:.4f}")
 
@@ -110,7 +111,7 @@ def main():
             results[direction] = compute_fim(
                 simulate_data, bin_centers, np.arange(index_start, index_stop),
                 G=G, alpha=alpha, N_rep=n_rep, N_sim=n_sim,
-                calc_method="branchingratio", direction=direction,
+                calc_method="sigma", direction=direction,
                 logarithmic=True, n_jobs=n_jobs,
             )
 
@@ -123,7 +124,7 @@ def main():
         fim_upper = (b_up + f_up) / 2.0
 
 
-        fim_peak, fim_width, _, _ = compute_fim_metrics(
+        fim_peak, fim_width = compute_fim_metrics(
             bin_centers[index_start:index_stop], fim_mean, center=critical_sigma,
         )
         print(fim_mean.shape, fim_lower.shape, fim_upper.shape)

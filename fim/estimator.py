@@ -2,7 +2,7 @@ import numpy as np
 from joblib import Parallel, delayed
 from tqdm.auto import tqdm
 
-from .npfi import npfi, npfi_2, get_pdfs_from_data
+from .npfi import npfi, get_pdfs_from_data
 
 import logging
 
@@ -16,28 +16,35 @@ logger.addHandler(_handler)
 __all__ = [
     "FisherInfoCalculator",
     "compute_fim",
+    "compute_fim_metrics",
 ]
 
 
 
 DEFAULT_EPSILON = 0.05
-
 DEFAULT_EPSILON_TOLERANCE = 0.02
-
 DEFAULT_EPSILON_TOO_LARGE = 0.2
 
 
 def _sample_axis(arr, n_param):
     """
-    Which axis of a 2D array runs over samples?
+    Which axis of a 2D array indexes parameter values?
 
-    Args:
-        arr (ndarray): the 2D data array
-        n_param (int): number of parameter values
+    Parameters
+    ----------
+    arr : ndarray, shape (n_samples, n_param) or (n_param, n_samples)
+    n_param : int
+        Number of parameter values.
 
-    Returns:
-        int: ``1`` for the documented ``(n_samples, n_param_values)`` layout,
-            ``0`` for the transposed ``(n_param_values, n_samples)`` one.
+    Returns
+    -------
+    int
+        1 if the array is (n_samples, n_param); 0 if (n_param, n_samples).
+
+    Raises
+    ------
+    ValueError
+        If neither axis has length n_param.
     """
     rows, cols = arr.shape
 
@@ -58,17 +65,30 @@ def _sample_axis(arr, n_param):
 
 def _per_parameter_samples(all_data, n_param):
     """
-    Normalise ``all_data`` to a list of ``n_param`` sample arrays, entry ``i``
-    holding the samples at parameter value ``i``.
+    Normalise input data to a list of n_param sample arrays.
 
-    Args:
-        all_data: a list or tuple of per-parameter sample arrays, a 1D object
-            array of the same, a 2D ``(n_samples, n_param_values)`` array, or
-            the transposed ``(n_param_values, n_samples)`` array
-        n_param (int): number of parameter values
+    Accepts any of the following layouts:
 
-    Returns:
-        list of ndarray: one sample array per parameter value.
+    - list or tuple of n_param arrays, one per parameter value;
+    - 1D object array of n_param arrays;
+    - 2D array of shape (n_samples, n_param) or (n_param, n_samples).
+
+    Parameters
+    ----------
+    all_data : list, tuple, or ndarray
+    n_param : int
+        Expected number of parameter values.
+
+    Returns
+    -------
+    list of ndarray
+        Entry i contains the samples at parameter value i.
+
+    Raises
+    ------
+    ValueError
+        If the number of entries does not match n_param, or if the array
+        has more than two dimensions.
     """
     if isinstance(all_data, (list, tuple)):
         entries = list(all_data)
@@ -96,27 +116,27 @@ def _per_parameter_samples(all_data, n_param):
 
 class FisherInfoCalculator:
     """
-    Estimate the Fisher information of a parameter axis by finite differences
+    Estimate FIM of a parameter axis by finite differences
     on non-parametric density estimates.
 
     Args:
-        G (int): number of grid points in DEFT density estimate
-        alpha (int): DEFT smoothing parameter
+        G (int): number of grid points in DEFT
+        alpha (int): smoothness parameter in DEFT
         N_rep (int): number of bootstrap resamples
         N_sim (int): number of samples 
         logarithmic (bool): differentiate ``log p(x|theta)`` instead of
             ``p(x|theta)``
-        calc_method (None or "branchingratio"): ``None`` uses the symmetric
-            three-point stencil ``theta-dt, theta, theta+dt``;
-            ``"branchingratio"`` uses the two-point stencil implied by
+        calc_method (None or "sigma"): ``None`` uses the symmetric
+            three-point difference ``theta-dt, theta, theta+dt``;
+            ``"sigma"`` uses the two-point difference implied by
             ``direction``
-        direction ("forward" or "backward"): which one-sided stencil to use
-            when ``calc_method="branchingratio"``
+        direction ("forward" or "backward"): which one-sided difference to use
+            when ``calc_method="sigma"``
         verbose (bool): emit per-step diagnostics from the step search
     """
 
     def __init__(self, G, alpha, N_rep, N_sim,
-                 logarithmic=True, calc_method=None,
+                 logarithmic=False, calc_method=None,
                  direction="forward", verbose=False):
         self.G = G
         self.alpha = alpha
@@ -130,23 +150,23 @@ class FisherInfoCalculator:
     def calculate_fisher_info(self, data, i, step, dt, method=None,
                               direction="forward"):
         """
-        Fisher information at parameter index ``i`` using a step of ``step``
+        FIM at parameter index ``i`` using a step of ``step``
         bins.
 
         Args:
-            data (ndarray): ``data[:, j]`` are the samples at parameter value
-                ``j``
+            data (ndarray): ``data[:, i]`` are the samples at parameter value
+                ``i``
             i (int): parameter index to evaluate at
             step (int): finite-difference step in bins
             dt (float): the finite-difference step in parameter units
-            method (None or "branchingratio"): stencil to use
+            method (None or "sigma"): difference to use
             direction ("forward" or "backward"): side to use when
-                ``method="branchingratio"``
+                ``method="sigma"``
 
         Returns:
-            (FI, epsilon): the Fisher information and its discretisation error.
+            (FI, epsilon): the FIM and its estimation error.
         """
-        if method == "branchingratio":
+        if method == "sigma":
             if direction == "forward":
                 pdf_deft, bbox_deft = get_pdfs_from_data(
                     [data[:, i], data[:, i + step]],
@@ -162,12 +182,13 @@ class FisherInfoCalculator:
                     f"direction must be 'forward' or 'backward', got {direction!r}"
                 )
 
-            FI_deft, _, epsilon_deft = npfi_2(
+            FI_deft, _, epsilon_deft = npfi(
                 pdf_deft,
                 dt=dt,
                 bounds=bbox_deft,
                 logarithmic=self.logarithmic,
                 N=self.N_sim,
+                direction=direction,
             )
         else:
             pdf_deft, bbox_deft = get_pdfs_from_data(
@@ -185,20 +206,16 @@ class FisherInfoCalculator:
 
         return FI_deft, epsilon_deft
 
-    def optimize_step_deft(self, data, theta_range, theta_realrange, dt):
+    def optimize_step_deft(self, data, theta_range, theta_realrange):
         """
-        Evaluate the FI on ``theta_realrange``, choosing the finite-difference
-        step so that the estimated discretisation error ``epsilon`` lands
-        inside ``DEFAULT_EPSILON +/- DEFAULT_EPSILON_TOLERANCE``.
+        Evaluate FIM on ``theta_realrange``, choosing the finite-difference
+        step so that the estimation error ``epsilon`` falls
+        inside the tolerance---``DEFAULT_EPSILON +/- DEFAULT_EPSILON_TOLERANCE``.
 
         Args:
             data (ndarray): shape ``(n_samples, n_param_values)``
-            theta_range (ndarray): the parameter values themselves; a step of
-                ``step`` bins translates to
-                ``(theta_range[i+step] - theta_range[i-step]) / 2``
+            theta_range (ndarray): the parameter values themselves
             theta_realrange (iterable of int): parameter indices to evaluate at
-            dt: unused, kept for backwards compatibility with the original
-                signature
 
         Returns:
             (FI, EPSILON): two arrays aligned with ``theta_realrange``.
@@ -349,9 +366,12 @@ class FisherInfoCalculator:
 
         return np.array(FI), np.array(EPSILON)
 
-    def _single_bootstrap(self, b, theta_range, per_param, theta_realrange, dt):
+    def _single_bootstrap(self, b, theta_range, per_param, theta_realrange):
         """
         One bootstrap resample.
+
+        Draws ``N_sim`` samples with replacement from every parameter value,
+        then estimates the FIM on that resampled data set.
 
         Args:
             b (int): resample index
@@ -359,10 +379,11 @@ class FisherInfoCalculator:
             per_param (list of ndarray): one array of samples per parameter
                 value, see :func:`_per_parameter_samples`
             theta_realrange (iterable of int): parameter indices to evaluate at
-            dt (float): finite-difference step in parameter units
 
         Returns:
-            (FI, epsilon) from :meth:`optimize_step_deft`.
+            (FI, epsilon): two arrays aligned with ``theta_realrange`` -- the
+                Fisher information at each parameter index, and the numerical
+                error estimate attached to it by :meth:`optimize_step_deft`.
         """
         data = []
         for i in range(len(theta_range)):
@@ -371,15 +392,15 @@ class FisherInfoCalculator:
 
         data = np.array(data).T  # -> (N_sim, n_param_values)
 
-        fi, epsilon = self.optimize_step_deft(data, theta_range, theta_realrange, dt)
+        fi, epsilon = self.optimize_step_deft(data, theta_range, theta_realrange)
 
         logger.debug("Bootstrap %s: FI = %s", b, fi)
         return fi, epsilon
 
-    def bootstrap_parallel(self, all_data, theta_range, theta_realrange, dt,
-                           n_jobs=6, output_verbose=False):
+    def bootstrap_parallel(self, all_data, theta_range, theta_realrange,
+                           n_jobs=-2, output_verbose=False):
         """
-        Bootstrap the FI estimate over ``self.N_rep`` resamples.
+        Bootstrap the FIM estimate over ``self.N_rep`` resamples.
 
         Args:
             all_data: a ``(n_samples, n_param_values)`` array or an object
@@ -387,7 +408,6 @@ class FisherInfoCalculator:
                 :func:`_per_parameter_samples`
             theta_range (ndarray): the parameter values
             theta_realrange (iterable of int): parameter indices to evaluate at
-            dt (float): finite-difference step in parameter units
             n_jobs (int): joblib worker count
             output_verbose (bool): return the full array of replicates instead
 
@@ -403,7 +423,7 @@ class FisherInfoCalculator:
             for result in Parallel(n_jobs=n_jobs,
                                    return_as="generator_unordered")(
                 delayed(self._single_bootstrap)(b, theta_range, per_param,
-                                                theta_realrange, dt)
+                                                theta_realrange)
                 for b in range(self.N_rep)
             ):
                 bootstrap_results.append(result)
@@ -427,25 +447,24 @@ class FisherInfoCalculator:
         return FI_mean, FI_ci_lower, FI_ci_upper, epsilon_mean
 
 
-def compute_fim(data, param_values, index_range, *, G=100, alpha=1, N_rep=1,
+def compute_fim(data, param_values, index_range, *, G=100, alpha=1, N_rep=32,
                 N_sim=10000, calc_method=None, direction="forward",
                 logarithmic=False, n_jobs=-2, verbose=False):
     """
-    One-shot FI estimate on a sample-by-parameter array, the common entry
-    point for both pipelines.
+    One-shot FIM estimate, the common entry for both pipelines.
 
     Args:
-        data (ndarray): ``data[:, j]`` are the samples at parameter value ``j``
+        data (ndarray): ``data[:, i]`` are the samples at parameter value ``i``
         param_values (ndarray): the parameter grid, shape
             ``(n_param_values,)``
         index_range (iterable of int): parameter indices to evaluate at
-        G (int): number of grid points in DEFT density estimate
-        alpha (int): smoothing parameter in DEFT
+        G (int): number of grid points in DEFT
+        alpha (int): smoothness parameter in DEFT
         N_rep (int): number of bootstrap resamples
         N_sim (int): number of samples drawn per parameter bin in each resample
-        calc_method (None or "branchingratio"): stencil to use
+        calc_method (None or "sigma"): difference scheme to use
         direction ("forward" or "backward"): side to use when
-            ``calc_method="branchingratio"``
+            ``calc_method="sigma"``
         logarithmic (bool): differentiate ``log p(x|theta)`` instead of
             ``p(x|theta)``
         n_jobs (int): joblib worker count
@@ -460,28 +479,25 @@ def compute_fim(data, param_values, index_range, *, G=100, alpha=1, N_rep=1,
         logarithmic=logarithmic, calc_method=calc_method,
         direction=direction, verbose=verbose,
     )
-    dt = float(np.mean(np.diff(param_values))) if len(param_values) > 1 else 1.0
     return calculator.bootstrap_parallel(
-        data, param_values, index_range, dt,
+        data, param_values, index_range,
         n_jobs=n_jobs,
     )
 
 
-def compute_fim_metrics(param_values, fim, *, center=1.0, plot_range=5):
+def compute_fim_metrics(param_values, fim, *, center=1.0):
     """
-    Two summary numbers read off a whole FI curve: the largest FI on the
-    curve, and the standard deviation of the curve treated as a distribution
-    over the parameter about ``center``.
+    Two summary numbers for the FIM: the peak height & peak width of FIM
 
     Args:
         param_values (ndarray): the parameter grid
-        fim (ndarray): the FI curve on that grid
+        fim (ndarray): the FIM curve on that grid
         center (float): where the width is measured, i.e. the critical point
-        plot_range (int): half-width, in grid points, of the returned slice
 
     Returns:
-        (peak_height, peak_width, param_slice, fim_slice): the two scalars
-            as floats, and the ``2 * plot_range + 1`` points around ``center``.
+        (peak_height, moment_width): the maximum of ``fim``, and the standard
+            deviation of ``param_values`` under the distribution ``fim / sum``,
+            both as floats.
     """
     param_values = np.asarray(param_values)
     fim = np.asarray(fim)
@@ -491,6 +507,4 @@ def compute_fim_metrics(param_values, fim, *, center=1.0, plot_range=5):
     weights = fim / np.sum(fim)
     moment_width = float(np.sqrt(np.sum(weights * (param_values - center) ** 2)))
 
-    center_index = int(np.argmin(np.abs(param_values - center)))
-    sl = slice(max(0, center_index - plot_range), center_index + plot_range + 1)
-    return peak_height, moment_width, param_values[sl], fim[sl]
+    return peak_height, moment_width
