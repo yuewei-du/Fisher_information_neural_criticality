@@ -8,7 +8,7 @@ This repository applies Fisher Information Metric (FIM) to neural systems, as a 
 FIM measures the response of the observable distribution to parameter variations:
 
 $$
-G_{\theta\theta} = \int \frac{[\partial_\theta \, p(x \mid \theta)]^2}{p(x \mid \theta)} \, \mathrm{d}x
+G_{\theta\theta} = \int \frac{[\partial_\theta \ p(x \mid \theta)]^2}{p(x \mid \theta)} \, \mathrm{d}x
 $$
 
 and peaks at the critical point in finite-size systems, making it a continuous,

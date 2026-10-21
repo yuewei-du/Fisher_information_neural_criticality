@@ -36,7 +36,7 @@ def main():
     bin_width = 0.01          # initial bin width for the search
     bin_width_check_halfwidth = 5
     fim_estimation_halfwidth = 10
-    show_figures = False
+    show_figures = True
 
     out_dir = Path(__file__).resolve().parents[2] / "outputs" / "sigma"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -53,7 +53,7 @@ def main():
         )
 
         # ---- stage 1: simulate the time series and save it ---------------------
-        """ t_start = time.perf_counter()
+        t_start = time.perf_counter()
 
         S_t, sigma_t = simulate_para_sigma(
             lambda_target, network_params, T=T, n_trials=n_trials,
@@ -66,7 +66,7 @@ def main():
 
         elapsed = time.perf_counter() - t_start
         minutes, seconds = divmod(elapsed, 60)
-        print(f"Simulation took {int(minutes)}m {int(seconds)}s") """
+        print(f"Simulation took {int(minutes)}m {int(seconds)}s")
 
         # ---- stage 2: load the time series and estimate FIM --------------------
         with np.load(simulate_path) as saved:
