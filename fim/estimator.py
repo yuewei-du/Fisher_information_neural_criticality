@@ -1,17 +1,13 @@
+import logging
+
 import numpy as np
 from joblib import Parallel, delayed
 from tqdm.auto import tqdm
 
 from .npfi import npfi, get_pdfs_from_data
 
-import logging
-
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-_handler = logging.StreamHandler()
-_handler.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
-logger.addHandler(_handler)
 
 __all__ = [
     "FisherInfoCalculator",
@@ -133,11 +129,22 @@ class FisherInfoCalculator:
         direction ("forward" or "backward"): which one-sided difference to use
             when ``calc_method="sigma"``
         verbose (bool): emit per-step diagnostics from the step search
+
+    Raises:
+        ValueError: for an unknown ``calc_method`` or ``direction``.
     """
 
     def __init__(self, G, alpha, N_rep, N_sim,
                  logarithmic=False, calc_method=None,
                  direction="forward", verbose=False):
+        if calc_method not in (None, "sigma"):
+            raise ValueError(
+                f"calc_method must be None or 'sigma', got {calc_method!r}"
+            )
+        if direction not in ("forward", "backward"):
+            raise ValueError(
+                f"direction must be 'forward' or 'backward', got {direction!r}"
+            )
         self.G = G
         self.alpha = alpha
         self.N_sim = N_sim
@@ -224,7 +231,11 @@ class FisherInfoCalculator:
         optimal = DEFAULT_EPSILON
         too_large = DEFAULT_EPSILON_TOO_LARGE
 
-        logger.setLevel(logging.ERROR if self.N_rep > 1 else logging.INFO)
+        # with many bootstrap resamples, per-point messages would repeat
+        # N_rep times: demote them to DEBUG unless asked for
+        quiet = self.N_rep > 1 and not self.verbose
+        warning_level = logging.DEBUG if quiet else logging.WARNING
+        info_level = logging.DEBUG if quiet else logging.INFO
 
         FI, EPSILON = [], []
 
@@ -253,7 +264,8 @@ class FisherInfoCalculator:
                         method=self.calc_method, direction=self.direction,
                     )
                     if epsilon >= optimal + err_allowed:
-                        logger.warning(
+                        logger.log(
+                            warning_level,
                             "cannot increase step further, i=%s, param=%.4f, "
                             "step=%s, FI=%.1f, epsilon=%.2g",
                             i, theta_range[i], step, FI_deft, epsilon,
@@ -263,7 +275,8 @@ class FisherInfoCalculator:
                 if optimal + err_allowed < epsilon < too_large:
                     do_step = do_step // 2 + 1
                     if step + 1 > max_step:
-                        logger.warning(
+                        logger.log(
+                            warning_level,
                             "Cannot increase step further, i=%s, param=%.4f, "
                             "step=%s, FI=%.1f, epsilon=%.2g",
                             i, theta_range[i], step, FI_deft, epsilon,
@@ -283,7 +296,8 @@ class FisherInfoCalculator:
                 if epsilon < optimal - err_allowed:
                     do_step = do_step // 2 + 2
                     if step - 1 < 1:
-                        logger.warning(
+                        logger.log(
+                            warning_level,
                             "Cannot decrease step further, i=%s, param=%.4f, "
                             "step=%s, FI=%.1f, epsilon=%.2g",
                             i, theta_range[i], step, FI_deft, epsilon,
@@ -338,7 +352,8 @@ class FisherInfoCalculator:
                             dt=(theta_range[i + step] - theta_range[i - step]) / 2,
                             method=self.calc_method, direction=self.direction,
                         )
-                        logger.warning(
+                        logger.log(
+                            warning_level,
                             "Exhaustive search applied at i=%s, param=%.4f. "
                             "Best step=%s, epsilon=%.3f (from %s candidates)",
                             i, theta_range[i], step, epsilon, len(candidate_steps),
@@ -349,13 +364,15 @@ class FisherInfoCalculator:
                     step_detect[step] = 1
 
                 if optimal - err_allowed <= epsilon <= optimal + err_allowed:
-                    logger.info(
+                    logger.log(
+                        info_level,
                         "Converged: i=%s, param=%.4f, step=%s, FI=%.1f, eps=%.2g",
                         i, theta_range[i], step, FI_deft, epsilon,
                     )
 
             if not entered_while:
-                logger.info(
+                logger.log(
+                    info_level,
                     "Converged (no step search): i=%s, param=%.4f, step=%s, "
                     "FI=%.1f, eps=%.2g",
                     i, theta_range[i], step, FI_deft, epsilon,
@@ -366,7 +383,8 @@ class FisherInfoCalculator:
 
         return np.array(FI), np.array(EPSILON)
 
-    def _single_bootstrap(self, b, theta_range, per_param, theta_realrange):
+    def _single_bootstrap(self, b, theta_range, per_param, theta_realrange,
+                          seed):
         """
         One bootstrap resample.
 
@@ -379,15 +397,17 @@ class FisherInfoCalculator:
             per_param (list of ndarray): one array of samples per parameter
                 value, see :func:`_per_parameter_samples`
             theta_realrange (iterable of int): parameter indices to evaluate at
+            seed (SeedSequence): seeds this resample's random generator
 
         Returns:
             (FI, epsilon): two arrays aligned with ``theta_realrange`` -- the
                 Fisher information at each parameter index, and the numerical
                 error estimate attached to it by :meth:`optimize_step_deft`.
         """
+        rng = np.random.default_rng(seed)
         data = []
         for i in range(len(theta_range)):
-            indices = np.random.choice(len(per_param[i]), self.N_sim, replace=True)
+            indices = rng.choice(len(per_param[i]), self.N_sim, replace=True)
             data.append(per_param[i][indices])
 
         data = np.array(data).T  # -> (N_sim, n_param_values)
@@ -398,7 +418,7 @@ class FisherInfoCalculator:
         return fi, epsilon
 
     def bootstrap_parallel(self, all_data, theta_range, theta_realrange,
-                           n_jobs=-2, output_verbose=False):
+                           n_jobs=-2, output_verbose=False, seed=None):
         """
         Bootstrap the FIM estimate over ``self.N_rep`` resamples.
 
@@ -410,6 +430,8 @@ class FisherInfoCalculator:
             theta_realrange (iterable of int): parameter indices to evaluate at
             n_jobs (int): joblib worker count
             output_verbose (bool): return the full array of replicates instead
+            seed (int or None): seed for the bootstrap resampling; the same
+                seed gives the same result for any ``n_jobs``
 
         Returns:
             (FI_mean, FI_ci_lower, FI_ci_upper, epsilon_mean), or the
@@ -417,13 +439,13 @@ class FisherInfoCalculator:
                 ``output_verbose`` is set.
         """
         per_param = _per_parameter_samples(all_data, len(theta_range))
+        seeds = np.random.SeedSequence(seed).spawn(self.N_rep)
 
         bootstrap_results = []
         with tqdm(total=self.N_rep, desc="bootstrap", unit="rep") as bar:
-            for result in Parallel(n_jobs=n_jobs,
-                                   return_as="generator_unordered")(
+            for result in Parallel(n_jobs=n_jobs, return_as="generator")(
                 delayed(self._single_bootstrap)(b, theta_range, per_param,
-                                                theta_realrange)
+                                                theta_realrange, seeds[b])
                 for b in range(self.N_rep)
             ):
                 bootstrap_results.append(result)
@@ -431,8 +453,8 @@ class FisherInfoCalculator:
 
         bootstrap_FI = np.array([result[0] for result in bootstrap_results])
         bootstrap_epsilon = np.array([result[1] for result in bootstrap_results])
-        print(f"Bootstrap FI shape: {bootstrap_FI.shape}, "
-              f"Epsilon shape: {bootstrap_epsilon.shape}")
+        logger.debug("Bootstrap FI shape: %s, epsilon shape: %s",
+                     bootstrap_FI.shape, bootstrap_epsilon.shape)
 
         if np.isnan(bootstrap_FI).any():
             raise ValueError("Error: Detected NaN values in bootstrap_FI array!")
@@ -449,7 +471,7 @@ class FisherInfoCalculator:
 
 def compute_fim(data, param_values, index_range, *, G=100, alpha=1, N_rep=32,
                 N_sim=10000, calc_method=None, direction="forward",
-                logarithmic=False, n_jobs=-2, verbose=False):
+                logarithmic=False, n_jobs=-2, verbose=False, seed=None):
     """
     One-shot FIM estimate, the common entry for both pipelines.
 
@@ -469,6 +491,8 @@ def compute_fim(data, param_values, index_range, *, G=100, alpha=1, N_rep=32,
             ``p(x|theta)``
         n_jobs (int): joblib worker count
         verbose (bool): emit per-step diagnostics from the step search
+        seed (int or None): seed for the bootstrap resampling, for
+            reproducible results
 
     Returns:
         (FI_mean, FI_lower, FI_upper, epsilon_mean): each an array aligned
@@ -481,7 +505,7 @@ def compute_fim(data, param_values, index_range, *, G=100, alpha=1, N_rep=32,
     )
     return calculator.bootstrap_parallel(
         data, param_values, index_range,
-        n_jobs=n_jobs,
+        n_jobs=n_jobs, seed=seed,
     )
 
 

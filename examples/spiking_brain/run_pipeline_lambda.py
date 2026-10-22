@@ -1,17 +1,19 @@
-import sys
+"""
+Pipeline A: FIM of the control parameter lambda. Run from the repo root:
+
+    python -m examples.spiking_brain.run_pipeline_lambda
+"""
+
 import time
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from fim import compute_fim, plot_histogram_and_pdf     
-from fim.estimator import (                              
-    DEFAULT_EPSILON, DEFAULT_EPSILON_TOLERANCE,
-)
-from examples.spiking_brain.model import NetworkParams   
-from examples.spiking_brain.simulate import simulate_para_lambda  
+from fim import compute_fim, plot_histogram_and_pdf
+from fim.estimator import DEFAULT_EPSILON, DEFAULT_EPSILON_TOLERANCE
+from examples.spiking_brain.model import NetworkParams
+from examples.spiking_brain.simulate import simulate_para_lambda
 
 
 def main():
@@ -20,7 +22,7 @@ def main():
     T = 4000                 # number of time steps per realisation
     transient_cutoff = 2000   # steps discarded as transients
     N = 200                   # number of nodes in the network
-    n_sim = n_trials             # numebr of samples per bin 
+    n_sim = n_trials             # number of samples per bin
     n_jobs = 7
     lambda_range = np.linspace(0.9, 1.1, 81) # parameter grid
 
